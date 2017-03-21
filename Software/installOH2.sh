@@ -1,12 +1,22 @@
 #! /bin/bash
 
-sudo adduser --system --no-create-home --group --disabled-login openhab
+# INSTALL ALL SUPPORTING SOFTWARE
+echo ""
+echo ""
+echo ""
+echo " -----###############################-----"
+echo " -----### INSTALLING REQUIREMENTS ###-----"
+echo " -----###############################-----"
+echo ""
+sudo ~/MYBUTLER/Software/Install/installOH2Reqs.sh
+echo ""
 
-cd /tmp
-wget -O openhab-download.zip https://bintray.com/openhab/mvn/download_file?file_path=org%2Fopenhab%2Fdistro%2Fopenhab%2F2.0.0%2Fopenhab-2.0.0.zip
-sudo unzip openhab-download.zip -d /opt/openhab2
-rm openhab-download.zip
-
-sudo chown -hR openhab:openhab /opt/openhab2
-
-sudo su -s /bin/bash -c '/opt/openhab2/start.sh' openhab
+# INSTALL OpenHAB2
+echo ""
+echo ""
+echo ""
+echo "  -----###########################-----"
+echo "  -----### INSTALLING OPENHAB2 ###-----"
+echo "  -----###########################-----"
+echo ""
+sudo ~/MYBUTLER/Software/Install/installOH2.sh

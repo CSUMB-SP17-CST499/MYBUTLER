@@ -1,0 +1,6 @@
+Switch generic_switch (living_room) {mqtt="
+	<[mosquitto:/device/item/status:state:ON:1],
+	<[mosquitto:/device/item/status:state:OFF:0],
+	>[mosquitto:/device/item/control:command:ON:1],
+	>[mosquitto:/device/item/control:command:OFF:0]
+"}

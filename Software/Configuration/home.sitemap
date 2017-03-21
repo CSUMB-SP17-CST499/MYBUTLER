@@ -1,0 +1,10 @@
+sitemap home label="Home!"{
+	Frame{
+		Group item=living_room label="Living Room" icon="groundfloor"{
+			Switch item=generic_switch
+		}
+		Group item=master_bed label="Master Bedroom" icon="groundfloor"{
+		
+		}
+	}
+}
