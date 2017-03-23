@@ -24,14 +24,6 @@ echo ""
 sudo curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -
 echo ""
 
-# NPM INSTALLATION
-echo ""
-echo ""
-echo "  --> *INSTALLING NPM*"
-echo ""
-sudo apt-get install npm -y
-echo ""
-
 # NODE JS INSTALLATION
 echo ""
 echo ""
@@ -39,8 +31,3 @@ echo "  --> *INSTALLING NODE*"
 echo ""
 sudo apt-get install nodejs -y
 echo ""
-
-
-
-
-
