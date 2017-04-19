@@ -45,3 +45,14 @@ sudo cp $USER_HOME/MYBUTLER/Software/Configuration/index.ejs ./views/
 echo ""
 echo "   --> *CONFIGURATION FINISHED*"
 
+cd $USER_HOME/MYBUTLER/Software/Tools/
+
+# ENSURE Mongodump.sh is run
+sudo ./mongodump.sh
+
+# ENSURE Set up PM2
+sudo ./enablePM2
+
+# ENSURE 
+sudo ./secureNginx.sh
+
