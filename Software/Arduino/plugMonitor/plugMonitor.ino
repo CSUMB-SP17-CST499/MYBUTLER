@@ -4,124 +4,150 @@
  * 
  * Inputs:
  * 1. Pin to track monitor line
- * 2. Channel with incoming plug enable/disable commands
  * Outputs:
- * 1. Pin to enable/disable plug
- * 2. Heartbeat channel with status of monitor line
- * 3. Heartbeat channel with status of plug enable/disable (LOW is enable, N/C relay state)
+ * 1. Heartbeat channel with status of monitor line
  */
-
-#include <EEPROM.h>
-#include <ESP8266WiFi.h>
-#include <PubSubClient.h>
+ 
+#include <EEPROM.h> 
+#include <ESP8266WiFi.h> 
+#include <PubSubClient.h> 
 #include <Wire.h>
- 
-// Connect to the WiFi
-const char* ssid = "ESP-Prog";
-const char* password = "";
-const char* mqtt_server = "192.168.1.147"; //  Server's IP address
-uint16_t mqtt_port = 1883;
- 
-WiFiClient espClient;
-PubSubClient client(espClient);
 
-// Heartbeat and state variables
-unsigned long previousHB = 0;
-long HB_interval = 1000;
-char lineState = '0';
-char plugState = '0';
-const int linePin = 2; //  Pin to track monitor line
-const int plugPin = 3; //  Pin to enable/disable plug
+// Define GPIO Ports
+#define STATE_PIN 0
+#define RELAY_PIN 2
 
-// Send a heartbeat if it is time
-int heartbeat () {
-  if (client.publish("/device/item/lineStatus", &lineState) && client.publish("device/item/plugStatus", &plugState)) {
-    Serial.print("\nHB:");
-    Serial.print(lineState);
-    Serial.print(plugState);
-    return 1;
-  }
-  else {
-    Serial.print("\nHB failed:");
-    Serial.print(lineState);
-    Serial.print(plugState);
-    return 0;
-  }
+// Set Wi-Fi Paramaters
+const char* WIFI_SSID = "REPLACE ME WITH YOUR SSID";
+const char* WIFI_PASS = "REPLACE ME WITH YOUR PASS";
+
+// Set MQTT Parameters
+const char* MQTT_BROKER = "192.168.1.200";
+const int MQTT_PORT = 1883;
+const char* MQTT_USER = "";
+const char* MQTT_PASS = "";
+const char* STATUS_TOPIC = "/plugmonitor/status";
+
+// Heartbeat and State Tracking Variables
+unsigned long PREV_HB_TIME = 0;
+int HB_INTERVAL = 1000;
+bool CURRENT_STATE = false;
+
+// State Machine updating based on physical system
+void setState() {
+  
+  // ESP-01 breakout uses hardware pullup/pulldown @ ~15% of line voltage
+  // Put pin in input mode and pause for voltage stabilization
+    pinMode(STATE_PIN, INPUT); // PULLUP/PULLDOWN FUNCTION
+    delay(50);
+  
+  // Set CURRENT_STATE according to actual state of STATE_PIN
+    if (digitalRead(STATE_PIN)) {
+        CURRENT_STATE = true;
+    } else {
+        CURRENT_STATE = false;
+    }
+  
+  // Set STATE_PIN back into "drain" mode - float out ~15% depending on hardware
+    pinMode(STATE_PIN, OUTPUT); // PULLUP/PULLDOWN FUNCTION
+    digitalWrite(STATE_PIN, LOW); // PULLUP/PULLDOWN FUNCTION
+  
 }
 
-void checkPlugState () {
-  if (plugState == '0') {
-    digitalWrite(plugPin, HIGH);
-  }
-  else {
-    digitalWrite(plugPin, LOW);
-  }
+// Call this when a message is received - MQTT unpacking and message handling
+void messageHandler(char * _topic, byte * _payload, unsigned int _length) {
+
+    // Print out the details of the incoming message
+    Serial.print("\nMessage arrived on: ");
+    Serial.println(_topic);
+  
 }
 
-// Calls this when a message is received
-void callback(char* topic, byte* payload, unsigned int length) {
- Serial.print("Message arrived [");
- Serial.print(topic);
- Serial.print("] ");
- for (int i=0;i<length;i++) {
-  char receivedChar = (char)payload[i];
-  Serial.print(receivedChar);
-  if (receivedChar == '0')
-    plugState = '0';
-  if (receivedChar == '1')
-    plugState = '1';
-  }
-  Serial.println();
+// Create Wi-Fi and MQTT clients
+WiFiClient WIFI_CLIENT;
+PubSubClient MQTT_CLIENT(MQTT_BROKER, MQTT_PORT, messageHandler, WIFI_CLIENT);
+
+// Heartbeat function
+int heartbeat() {
+
+  // Attempt to publish the REPORT_VALUE on the STATUS_TOPIC and return success
+    if (MQTT_CLIENT.publish(STATUS_TOPIC, &REPORT_VALUE)) {
+        Serial.print("HB, State: ");
+        Serial.println(REPORT_VALUE);
+        return 1;
+    } else {
+        Serial.print("HB failed:");
+        Serial.println(REPORT_VALUE);
+        return 0;
+    }
+  
 }
- 
-// Reconnect if disconnected
+
+// Reconnect to the MQTT Broker
 void reconnect() {
- // Loop until we're reconnected
- while (!client.connected()) {
- Serial.print("Attempting MQTT connection...");
- // Attempt to connect
- if (client.connect("mqttClientID")) {
-  Serial.println("connected");
-  // ... and subscribe to topic
-  client.subscribe("/device/item/control"); //  Topic
- } else {
-  Serial.print("failed, rc=");
-  Serial.print(client.state());
-  Serial.println(" try again in 5 seconds");
-  // Wait 5 seconds before retrying
-  delay(5000);
-  }
- }
+  
+    // Loop until we're reconnected
+    while (!MQTT_CLIENT.connected()) {
+        Serial.print("Connecting to MQTT Broker...");
+        // Attempt to connect
+        if ( MQTT_CLIENT.connect("mqttClientID") ) {
+            Serial.println("connected!");
+        } 
+        // If connection failed, alert and retry after cooldown
+        else {
+            Serial.print("failed, rc=");
+            Serial.print(MQTT_CLIENT.state());
+            Serial.println(", try again in 2 seconds...");
+            delay(2000);
+        }
+    }
+  
 }
- 
-void setup()
-{
- Serial.begin(9600);
 
- Wifi.mode(WIFI_STA);
+void setup() {
+  
+    // Initialize Hardware Serial
+    Serial.begin(115200);
+    delay(10);
+    Serial.println();
 
- client.setServer(mqtt_server, 1883);
- client.setCallback(callback);
+    // Initialize Pin Directions/Levels
+    pinMode(STATE_PIN, OUTPUT); // PULLUP/PULLDOWN FUNCTION - use as input when not programming ESP-01 breakout
+    digitalWrite(STATE_PIN, LOW); // PULLUP/PULLDOWN FUNCTION - delete if using STATE_PIN as input
 
- pinMode(linePin, INPUT);
- pinMode(plugPin, OUTPUT);
- digitalWrite(plugPin, HIGH);
+    // Setup Wi-Fi
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+    // Try to connect to Wi-Fi until successful
+    Serial.print("WiFi connecting");
+    while ( WiFi.status() != WL_CONNECTED ) {
+        Serial.print(".");
+        delay(500);
+    }
+
+    // Print connection info and exit setup
+    Serial.println();
+    Serial.println("WiFi connected!");
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+  
 }
- 
-void loop()
-{
- // Reconnect if needed
- if (!client.connected()) {
-  reconnect();
- }
- client.loop();
 
- // Send HB if it is time
- unsigned long currentHB = millis();
- if (currentHB - previousHB >= HB_interval) {
-  heartbeat();
-  previousHB = currentHB;
- }
+void loop() {
+  
+    // Connect to the MQTT Broker if needed
+    if ( !MQTT_CLIENT.connected() ) {
+        reconnect();
+    }
+    // Handle MQTT Pub/Sub back-end functions
+    MQTT_CLIENT.loop();
 
-  checkPlugState();
+    // If hearbeat timer is exceeded, perform needed actions and update timer
+    if ( millis() > (PREV_HB_TIME + HB_INTERVAL)) {
+        setState();
+        heartbeat();
+        PREV_HB_TIME = millis();
+    }
+
 }
