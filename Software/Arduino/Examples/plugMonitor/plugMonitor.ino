@@ -10,16 +10,14 @@
  
 #include <EEPROM.h> 
 #include <ESP8266WiFi.h> 
-#include <PubSubClient.h> 
-#include <Wire.h>
+#include <PubSubClient.h>
 
 // Define GPIO Ports
-#define STATE_PIN 0
-#define RELAY_PIN 2
+#define OPTO_PIN 3
 
 // Set Wi-Fi Paramaters
-const char* WIFI_SSID = "REPLACE ME WITH YOUR SSID";
-const char* WIFI_PASS = "REPLACE ME WITH YOUR PASS";
+const char* WIFI_SSID = "MY-BUTLER";
+const char* WIFI_PASS = "ABCDE12345";
 
 // Set MQTT Parameters
 const char* MQTT_BROKER = "192.168.1.200";
@@ -35,31 +33,27 @@ bool CURRENT_STATE = false;
 
 // State Machine updating based on physical system
 void setState() {
-  
-  // ESP-01 breakout uses hardware pullup/pulldown @ ~15% of line voltage
-  // Put pin in input mode and pause for voltage stabilization
-    pinMode(STATE_PIN, INPUT); // PULLUP/PULLDOWN FUNCTION
-    delay(50);
+
+  pinMode(OPTO_PIN, OUTPUT);
+  digitalWrite(OPTO_PIN, LOW);
+  delay(10);
+  pinMode(OPTO_PIN, INPUT);
+  delay(90);
   
   // Set CURRENT_STATE according to actual state of STATE_PIN
-    if (digitalRead(STATE_PIN)) {
+    if (digitalRead(OPTO_PIN)) {
         CURRENT_STATE = true;
     } else {
         CURRENT_STATE = false;
     }
-  
-  // Set STATE_PIN back into "drain" mode - float out ~15% depending on hardware
-    pinMode(STATE_PIN, OUTPUT); // PULLUP/PULLDOWN FUNCTION
-    digitalWrite(STATE_PIN, LOW); // PULLUP/PULLDOWN FUNCTION
+
   
 }
 
 // Call this when a message is received - MQTT unpacking and message handling
 void messageHandler(char * _topic, byte * _payload, unsigned int _length) {
 
-    // Print out the details of the incoming message
-    Serial.print("\nMessage arrived on: ");
-    Serial.println(_topic);
+  // This should never happen!
   
 }
 
@@ -70,14 +64,17 @@ PubSubClient MQTT_CLIENT(MQTT_BROKER, MQTT_PORT, messageHandler, WIFI_CLIENT);
 // Heartbeat function
 int heartbeat() {
 
+  char* REPORT_VALUE = "0";
+  if(CURRENT_STATE){
+    REPORT_VALUE[0] = '1';
+  }
+  else{
+    REPORT_VALUE[0] = '0';
+  }
   // Attempt to publish the REPORT_VALUE on the STATUS_TOPIC and return success
-    if (MQTT_CLIENT.publish(STATUS_TOPIC, &REPORT_VALUE)) {
-        Serial.print("HB, State: ");
-        Serial.println(REPORT_VALUE);
+    if (MQTT_CLIENT.publish(STATUS_TOPIC, REPORT_VALUE)) {
         return 1;
     } else {
-        Serial.print("HB failed:");
-        Serial.println(REPORT_VALUE);
         return 0;
     }
   
@@ -88,16 +85,12 @@ void reconnect() {
   
     // Loop until we're reconnected
     while (!MQTT_CLIENT.connected()) {
-        Serial.print("Connecting to MQTT Broker...");
         // Attempt to connect
-        if ( MQTT_CLIENT.connect("mqttClientID") ) {
-            Serial.println("connected!");
+        if ( MQTT_CLIENT.connect("plugmonitor") ) {
+            // Good to go!
         } 
         // If connection failed, alert and retry after cooldown
         else {
-            Serial.print("failed, rc=");
-            Serial.print(MQTT_CLIENT.state());
-            Serial.println(", try again in 2 seconds...");
             delay(2000);
         }
     }
@@ -106,31 +99,21 @@ void reconnect() {
 
 void setup() {
   
-    // Initialize Hardware Serial
-    Serial.begin(115200);
-    delay(10);
-    Serial.println();
+ 
 
     // Initialize Pin Directions/Levels
-    pinMode(STATE_PIN, OUTPUT); // PULLUP/PULLDOWN FUNCTION - use as input when not programming ESP-01 breakout
-    digitalWrite(STATE_PIN, LOW); // PULLUP/PULLDOWN FUNCTION - delete if using STATE_PIN as input
-
+    pinMode(OPTO_PIN, INPUT);
+    
     // Setup Wi-Fi
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
     // Try to connect to Wi-Fi until successful
-    Serial.print("WiFi connecting");
     while ( WiFi.status() != WL_CONNECTED ) {
         Serial.print(".");
         delay(500);
     }
 
-    // Print connection info and exit setup
-    Serial.println();
-    Serial.println("WiFi connected!");
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
   
 }
 

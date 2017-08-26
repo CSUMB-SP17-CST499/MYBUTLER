@@ -17,13 +17,13 @@
 #include <Wire.h>
 
 // Define GPIO Ports
-#define BUTTON_PIN 0
+#define MOTION_PIN 0
 #define LED_RED_PIN 1 // Serial pin - cannot use Serial in sketch!
 #define LED_GRN_PIN 3 // Serial pin - cannot use Serial in sketch!
 
 // Set Wi-Fi Paramaters
-const char* WIFI_SSID = "MY-BUTLER";
-const char* WIFI_PASS = "ABCDE12345";
+const char* WIFI_SSID = "YOUR SSID HERE";
+const char* WIFI_PASS = "YOUR PASS HERE";
 
 // Set MQTT Parameters
 const char* MQTT_BROKER = "192.168.1.200";
@@ -36,18 +36,27 @@ const char* STATUS_TOPIC = "/motion/status";
 unsigned long PREV_HB_TIME = 0;
 int HB_INTERVAL = 1000;
 bool CURRENT_STATE = false;
+char* REPORT_VALUE = "0";
 
 // State Machine updating based on physical system
 void setState() {
+
+  pinMode(MOTION_PIN, INPUT);
+  delay(10);
   
 	// Set CURRENT_STATE according to actual state of BUTTON_PIN
-    if (digitalRead(BUTTON_PIN)) {
+    if (digitalRead(MOTION_PIN)) {
         CURRENT_STATE = true;
+        REPORT_VALUE[0] = '1';
     } else {
         CURRENT_STATE = false;
+        REPORT_VALUE[0] = '0';
     }
-	digitalWrite(LED_RED_PIN, CURRENT_STATE);
-	digitalWrite(LED_GRN_PIN, !CURRENT_STATE);
+	digitalWrite(LED_RED_PIN, !CURRENT_STATE);
+	digitalWrite(LED_GRN_PIN, CURRENT_STATE);
+
+  pinMode(MOTION_PIN, OUTPUT);
+  digitalWrite(MOTION_PIN, LOW);
   
 }
 
@@ -65,12 +74,6 @@ PubSubClient MQTT_CLIENT(MQTT_BROKER, MQTT_PORT, messageHandler, WIFI_CLIENT);
 
 // Heartbeat function
 int heartbeat() {
-	
-	// Convert CURRENT_STATE bool into char for outgoing message
-    char* REPORT_VALUE = "0";
-    if (CURRENT_STATE) {
-        REPORT_VALUE[0] = '1';
-    }
 	
 	// Attempt to publish the REPORT_VALUE on the STATUS_TOPIC and return success
     if (MQTT_CLIENT.publish(STATUS_TOPIC, REPORT_VALUE)) {
@@ -107,8 +110,8 @@ void setup() {
     digitalWrite(LED_RED_PIN, LOW);
 	
 	// Set button pin
-    pinMode(BUTTON_PIN, OUTPUT); // PULLUP/PULLDOWN FUNCTION - use as input when not programming ESP-01 breakout
-    digitalWrite(BUTTON_PIN, LOW); // PULLUP/PULLDOWN FUNCTION - delete if using STATE_PIN as input
+    pinMode(MOTION_PIN, OUTPUT); // PULLUP/PULLDOWN FUNCTION - use as input when not programming ESP-01 breakout
+    digitalWrite(MOTION_PIN, LOW); // PULLUP/PULLDOWN FUNCTION - delete if using STATE_PIN as input
 
     // Setup Wi-Fi
     WiFi.mode(WIFI_STA);

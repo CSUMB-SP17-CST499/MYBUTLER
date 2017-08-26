@@ -11,10 +11,8 @@
 *
 */
 
-#include <EEPROM.h> 
 #include <ESP8266WiFi.h> 
 #include <PubSubClient.h> 
-#include <Wire.h>
 
 // Define GPIO Ports
 #define BUTTON_PIN 4
@@ -53,6 +51,11 @@ void handleStateChar(char _input) {
 // State Machine updating based on physical system
 void setState() {
 
+  pinMode(BUTTON_PIN, OUTPUT);
+  digitalWrite(BUTTON_PIN, LOW);
+  delay(5);
+  pinMode(BUTTON_PIN, INPUT);
+  delay(25);
 	// Simple debounce to translate BUTTON_PIN into BUTTON_STATE
     if (digitalRead(BUTTON_PIN)) {
         if(debounceCounter == 10){

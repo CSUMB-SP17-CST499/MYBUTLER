@@ -128,7 +128,7 @@ void reconnect() {
     while (!MQTT_CLIENT.connected()) {
         Serial.print("Connecting to MQTT Broker...");
         // Attempt to connect
-        if ( MQTT_CLIENT.connect("mqttClientID") ) {
+        if ( MQTT_CLIENT.connect("switch") ) {
             Serial.println("connected!");
             // When connected, subscribe to CONTROL_TOPIC
             MQTT_CLIENT.subscribe(CONTROL_TOPIC);
